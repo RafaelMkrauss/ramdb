@@ -20,7 +20,8 @@ type Server struct {
 }
 
 type Request struct {
-	RawRequestContent []byte
+	RequestId   uint32
+	RequestBody []byte
 }
 
 type Response interface {
