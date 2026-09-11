@@ -54,17 +54,27 @@ func parseRequest(reader *bfreader.BufferedReader[byte]) (Request, error) {
 	if err != nil {
 		return Request{}, err
 	}
-	char_buffer := make([]byte, 4)
+	char_buffer := make([]byte, 8)
 	n, err := reader.Read(char_buffer)
 	if err != nil {
 		return Request{}, err
-	}
-	if n != 4 {
+	} else if n != 8 {
 		return Request{}, fmt.Errorf("Não foi possível ler o tamanho da mensagem.")
 	}
-	msg_lenght := binary.LittleEndian.Uint32(char_buffer)
-	println(msg_lenght)
-	return Request{}, nil
+	msg_length := binary.LittleEndian.Uint32(char_buffer[:4])
+	request_id := binary.LittleEndian.Uint32(char_buffer[4:])
+	msg_body_buffer := make([]byte, msg_length)
+	n, err = reader.Read(char_buffer)
+	if err != nil {
+		return Request{}, err
+	} else if n != 8 {
+		return Request{}, fmt.Errorf("Não foi possível ler o tamanho da mensagem.")
+	} else {
+		return Request{
+			RequestId:   request_id,
+			RequestBody: msg_body_buffer[:n],
+		}, nil
+	}
 }
 
 func (serv *Server) handleConnection(conn net.Conn) {
