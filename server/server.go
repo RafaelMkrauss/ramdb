@@ -2,14 +2,21 @@ package server
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"os"
+	"ramdb/constants"
+	bfreader "ramdb/utils/buffered_reader"
+	bufferedreader "ramdb/utils/buffered_reader"
 	"time"
 )
 
 type Server struct {
-	ListenAddress string
+	ListenAddress         string
+	RequestHandleCallback func(Request) Response
 }
 
 type Request struct {
@@ -17,49 +24,72 @@ type Request struct {
 }
 
 type Response interface {
-	Ok() error // Indicates if  the request could be resolved correctly
+	Fail() error // Indicates if  the request could be resolved correctly
 }
 
 func encodeResponse(Response) []byte {
 	return []byte{}
 }
 
-func getRequestsFullContent(conn net.Conn) ([]byte, error) {
-	mgs_content := make([]byte, 0, 1024)
-	buf := make([]byte, 1024)
-	tot_read_size, err := conn.Read(buf)
-	if err != nil {
-		return []byte{}, err
-	}
-	if tot_read_size < 4 {
-		return mgs_content, fmt.Errorf("Request size less than 4 bytes")
-	}
-	message_size := int(binary.LittleEndian.Uint32(buf[:4]))
-	mgs_content = append(mgs_content, buf[4:tot_read_size]...)
-
-	for tot_read_size < message_size {
-		nbytes, err := conn.Read(buf)
+func gotoMessageStart(reader *bfreader.BufferedReader[byte]) error {
+	padding_count := 0
+	char_buffer := []byte{0}
+	for {
+		_, err := reader.Read(char_buffer[:1])
 		if err != nil {
-			return mgs_content, err
+			return err
 		}
-		mgs_content = append(mgs_content, buf[:nbytes]...)
-		tot_read_size += nbytes
+		if char_buffer[0] == constants.SOH {
+			if padding_count == 3 {
+				return nil
+			}
+			padding_count += 1
+		}
 	}
-	return mgs_content, nil
 }
 
-func parseRequest(conn net.Conn) (Request, error) {
-	msg, err := getRequestsFullContent(conn)
+func parseRequest(reader *bfreader.BufferedReader[byte]) (Request, error) {
+	err := gotoMessageStart(reader)
 	if err != nil {
-		return Request{RawRequestContent: msg}, err
+		return Request{}, err
 	}
-	return Request{RawRequestContent: msg}, nil
+	char_buffer := make([]byte, 4)
+	n, err := reader.Read(char_buffer)
+	if err != nil {
+		return Request{}, err
+	}
+	if n != 4 {
+		return Request{}, fmt.Errorf("Não foi possível ler o tamanho da mensagem.")
+	}
+	msg_lenght := binary.LittleEndian.Uint32(char_buffer)
+	println(msg_lenght)
+	return Request{}, nil
 }
 
-func (serv *Server) StartServing(request_handle_callback func(Request) Response) error {
+func (serv *Server) handleConnection(conn net.Conn) {
+	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
+	reader := bufferedreader.New[byte](conn, 1024)
+	for {
+		decoded_request, err := parseRequest(&reader)
+		if err != nil {
+			if errors.Is(err, os.ErrDeadlineExceeded) || errors.Is(err, io.EOF) {
+				break
+			}
+			log.Printf("Error in message decription: %s", err.Error())
+		}
+		response := encodeResponse(serv.RequestHandleCallback(decoded_request))
+		n, err := conn.Write(response)
+		if err != nil || n != len(response) {
+			log.Printf("Error in sending response: %v.", err)
+		}
+	}
+}
+
+func (serv *Server) StartServing() error {
 	listener, err := net.Listen("tcp", serv.ListenAddress)
 	if err != nil {
-		return fmt.Errorf("Error listening to address %s: %v.", serv.ListenAddress, err)
+		return err
 	}
 	defer listener.Close()
 	for {
@@ -67,18 +97,6 @@ func (serv *Server) StartServing(request_handle_callback func(Request) Response)
 		if err != nil {
 			log.Printf("Error accepting to connection: %v.", err)
 		}
-		conn.SetReadDeadline(time.Now().Add(time.Second * 3)) // deadline de segurança
-		go func() {
-			defer conn.Close()
-			decoded_request, err := parseRequest(conn)
-			if err != nil {
-				log.Printf("Error in message decription.")
-			}
-			response := encodeResponse(request_handle_callback(decoded_request))
-			n, err := conn.Write(response)
-			if err != nil || n != len(response) {
-				log.Printf("Error in sending response: %v.", err)
-			}
-		}()
+		go serv.handleConnection(conn)
 	}
 }

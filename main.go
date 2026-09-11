@@ -4,15 +4,16 @@ import "ramdb/server"
 
 type CustomResponse struct{}
 
-func (CustomResponse) Ok() error {
+func (CustomResponse) Fail() error {
 	return nil
 }
 
 func main() {
 	serv := server.Server{
 		ListenAddress: ":8000",
+		RequestHandleCallback: func(r server.Request) server.Response {
+			return CustomResponse{}
+		},
 	}
-	serv.StartServing(func(r server.Request) server.Response {
-		return CustomResponse{}
-	})
+	serv.StartServing()
 }
