@@ -55,3 +55,30 @@ func main() {
 	resp3 := cmdHandler.Handle(req3)
 	fmt.Printf("Comando GET (Erro): %+v\n", resp3)
 */
+
+/*
+	comandosSimulados := []string{
+		"SET linguagem go",
+		"GET linguagem",
+		"DEL linguagem",
+		"GET linguagem", //deve retornar erro
+	}
+
+	fmt.Println("teste AOF")
+	for _, payload := range comandosSimulados {
+		req := server.Request{
+			RequestBody: []byte(payload),
+		}
+
+		resp := cmdHandler.Handle(req)
+
+		// Valida o retorno do handler
+		if err := resp.Fail(); err != nil {
+			fmt.Printf("Comando: %-20s -> ERRO: %v\n", payload, err)
+		} else {
+			if strResp, ok := resp.(handler.StringResponse); ok {
+				fmt.Printf("Comando: %-20s -> RESPOSTA: %s\n", payload, strResp.Data)
+			}
+		}
+	}
+/*
