@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"ramdb/aof"
 	"ramdb/db"
 	"ramdb/server"
 )
@@ -20,11 +21,13 @@ func (r StringResponse) Fail() error {
 
 type CommandHandler struct {
 	db *db.Engine
+	aof *aof.AOF
 }
 
-func New(db *db.Engine) *CommandHandler {
+func New(db *db.Engine, a *aof.AOF) *CommandHandler {
 	return &CommandHandler{
 		db: db,
+		aof: a,
 	}
 }
 
@@ -50,7 +53,10 @@ func (h *CommandHandler) Handle(r server.Request) server.Response {
 		if err != nil {
 			return StringResponse{Error: err}
 		}
-		h.db.Set(chave, valor)
+		h.db.Set(chave, valor) //Não duplicaram isso aqui sem querer não?
+		if h.aof != nil {
+			h.aof.Append(payload + "\n") 
+		}
 		return StringResponse{Data: "OK"}
 
 	case "GET":
@@ -70,6 +76,11 @@ func (h *CommandHandler) Handle(r server.Request) server.Response {
 		}
 		chave := args[1]
 		h.db.Delete(chave)
+
+		if h.aof != nil {
+			h.aof.Append(payload + "\n") 
+		}
+		
 		return StringResponse{Data: "OK"}
 
 	default:

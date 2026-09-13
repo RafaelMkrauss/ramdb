@@ -2,6 +2,8 @@ package main
 
 import (
 	//"fmt"
+	"log"
+	"ramdb/aof"
 	"ramdb/db"
 	"ramdb/handler"
 	"ramdb/server"
@@ -14,8 +16,14 @@ func (CustomResponse) Fail() error {
 }
 
 func main() {
+	persistencia, err := aof.NewAOF("database.aof")
+	if err != nil {
+		log.Fatal("Erro ao iniciar AOF:", err)
+	}
+	defer persistencia.Close()
+
 	db := db.NewEngine()
-	cmdHandler := handler.New(db)
+	cmdHandler := handler.New(db,persistencia)
 
 	serv := server.Server{
 		ListenAddress: ":8000",
