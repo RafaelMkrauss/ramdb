@@ -72,7 +72,7 @@ func main() {
 
 		resp := cmdHandler.Handle(req)
 
-		// Valida o retorno do handler
+		//valida o retorno do handler
 		if err := resp.Fail(); err != nil {
 			fmt.Printf("Comando: %-20s -> ERRO: %v\n", payload, err)
 		} else {
