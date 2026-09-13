@@ -2,6 +2,8 @@ package main
 
 import (
 	//"fmt"
+	"log"
+	"ramdb/aof"
 	"ramdb/db"
 	"ramdb/handler"
 	"ramdb/server"
@@ -14,8 +16,14 @@ func (CustomResponse) Fail() error {
 }
 
 func main() {
+	persistencia, err := aof.NewAOF("database.aof")
+	if err != nil {
+		log.Fatal("Erro ao iniciar AOF:", err)
+	}
+	defer persistencia.Close()
+
 	db := db.NewEngine()
-	cmdHandler := handler.New(db)
+	cmdHandler := handler.New(db,persistencia)
 
 	serv := server.Server{
 		ListenAddress: ":8000",
@@ -47,3 +55,30 @@ func main() {
 	resp3 := cmdHandler.Handle(req3)
 	fmt.Printf("Comando GET (Erro): %+v\n", resp3)
 */
+
+/*
+	comandosSimulados := []string{
+		"SET linguagem go",
+		"GET linguagem",
+		"DEL linguagem",
+		"GET linguagem", //deve retornar erro
+	}
+
+	fmt.Println("teste AOF")
+	for _, payload := range comandosSimulados {
+		req := server.Request{
+			RequestBody: []byte(payload),
+		}
+
+		resp := cmdHandler.Handle(req)
+
+		//valida o retorno do handler
+		if err := resp.Fail(); err != nil {
+			fmt.Printf("Comando: %-20s -> ERRO: %v\n", payload, err)
+		} else {
+			if strResp, ok := resp.(handler.StringResponse); ok {
+				fmt.Printf("Comando: %-20s -> RESPOSTA: %s\n", payload, strResp.Data)
+			}
+		}
+	}
+/*
