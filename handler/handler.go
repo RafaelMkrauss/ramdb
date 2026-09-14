@@ -9,7 +9,7 @@ import (
 	"ramdb/server"
 )
 
-// StringResponse implementa a interface server.Response do seu colega
+// StringResponse implementa a interface server. Response do seu colega. Cool
 type StringResponse struct {
 	Data  string
 	Error error
@@ -19,14 +19,18 @@ func (r StringResponse) Fail() error {
 	return r.Error
 }
 
+func (r StringResponse) RawData() []byte {
+	return []byte(r.Data)
+}
+
 type CommandHandler struct {
-	db *db.Engine
+	db  *db.Engine
 	aof *aof.AOF
 }
 
 func New(db *db.Engine, a *aof.AOF) *CommandHandler {
 	return &CommandHandler{
-		db: db,
+		db:  db,
 		aof: a,
 	}
 }
@@ -55,7 +59,7 @@ func (h *CommandHandler) Handle(r server.Request) server.Response {
 		}
 		h.db.Set(chave, valor) //Não duplicaram isso aqui sem querer não?
 		if h.aof != nil {
-			h.aof.Append(payload + "\n") 
+			h.aof.Append(payload + "\n")
 		}
 		return StringResponse{Data: "OK"}
 
@@ -78,9 +82,9 @@ func (h *CommandHandler) Handle(r server.Request) server.Response {
 		h.db.Delete(chave)
 
 		if h.aof != nil {
-			h.aof.Append(payload + "\n") 
+			h.aof.Append(payload + "\n")
 		}
-		
+
 		return StringResponse{Data: "OK"}
 
 	default:

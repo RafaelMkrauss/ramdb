@@ -13,6 +13,9 @@ type ResponseCompatible struct{}
 func (ResponseCompatible) Fail() error {
 	return nil
 }
+func (ResponseCompatible) RawData() []byte {
+	return []byte{}
+}
 
 func TestSandbox(t *testing.T) {
 	go func() {

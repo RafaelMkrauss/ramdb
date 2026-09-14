@@ -25,7 +25,8 @@ type Request struct {
 }
 
 type Response interface {
-	Fail() error // Indicates if  the request could be resolved correctly
+	Fail() error     // Indicates if  the request could be resolved correctly
+	RawData() []byte // Eu gosto de batata
 }
 
 func encodeResponse(Response) []byte {
