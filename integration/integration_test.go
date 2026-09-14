@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func setupServer(handler *handler.CommandHandler) {
+func runServer(handler *handler.CommandHandler) {
 
 	serv := server.Server{
 		ListenAddress: ":8000",
@@ -35,7 +35,7 @@ func TestMessageExchange(t *testing.T) {
 	db := db.NewEngine()
 	cmdHandler := handler.New(db, persistencia)
 
-	go setupServer(cmdHandler)
+	go runServer(cmdHandler)
 
 	comandosSimulados := []string{
 		"SET linguagem go",
