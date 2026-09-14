@@ -64,11 +64,10 @@ func parseRequest(reader *bfreader.BufferedReader[byte]) (Request, error) {
 	msg_length := binary.LittleEndian.Uint32(char_buffer[:4])
 	request_id := binary.LittleEndian.Uint32(char_buffer[4:])
 	msg_body_buffer := make([]byte, msg_length)
-	n, err = reader.Read(char_buffer) // isso aq vai explodir,n?
+	n, err = reader.Read(msg_body_buffer) // isso aq vai explodir,n? Vai sim. mb.
+	fmt.Printf("Eu gosto de batata. len %d,  id %d content %s\n", msg_length, request_id, string(msg_body_buffer))
 	if err != nil {
 		return Request{}, err
-	} else if n != 8 {
-		return Request{}, fmt.Errorf("Não foi possível ler o tamanho da mensagem.")
 	} else {
 		return Request{
 			RequestId:   request_id,

@@ -32,7 +32,7 @@ func NewAOF(path string) (*AOF, error) {
 
 func (a *AOF) worker() {
 	defer a.wg.Done()
-	
+
 	//sincroniza arquivo com o disco a cada segundo
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -60,7 +60,7 @@ func (a *AOF) Append(cmd string) {
 
 func (a *AOF) Close() {
 	close(a.ch)
-	a.wg.Wait(
+	a.wg.Wait()
 	a.file.Close()
 }
 

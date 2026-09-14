@@ -23,7 +23,7 @@ func main() {
 	defer persistencia.Close()
 
 	db := db.NewEngine()
-	cmdHandler := handler.New(db,persistencia)
+	cmdHandler := handler.New(db, persistencia)
 
 	serv := server.Server{
 		ListenAddress: ":8000",
@@ -81,4 +81,4 @@ func main() {
 			}
 		}
 	}
-/*
+*/
