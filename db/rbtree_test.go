@@ -33,7 +33,7 @@ func TestRBTree_PutAndGet(t *testing.T) {
 		t.Errorf("Tamanho da árvore deveria ser 1 após atualizar a mesma chave, mas é %d", tree.Size)
 	}
 
-	// 4. Teste de Chave Inexistente
+	// Teste de Chave Inexistente
 	_, err = tree.Get([]byte("banco_de_dados"))
 	if err != ErrKeyNotFound {
 		t.Errorf("Esperava ErrKeyNotFound, recebeu: %v", err)

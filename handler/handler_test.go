@@ -7,12 +7,12 @@ import (
 )
 
 func TestCommandHandler(t *testing.T) {
-	// 1. Setup: Instancia o DB e o Handler
+	// Setup: Instancia o DB e o Handler
 	// (Passamos nil para o AOF para focar apenas na lógica em memória neste teste)
 	database := db.NewEngine()
 	cmdHandler := New(database, nil)
 
-	// 2. Definimos os cenários que queremos testar sem usar o Netcat
+	// Definimos os cenários que queremos testar sem usar o Netcat
 	cenarios := []struct {
 		nome           string
 		comando        string
@@ -26,7 +26,7 @@ func TestCommandHandler(t *testing.T) {
 		{"Comando DEL válido", "DEL heroi", false, "OK"},
 	}
 
-	// 3. O loop processa as requisições simuladas
+	//  O loop processa as requisições simuladas
 	for _, tc := range cenarios {
 		t.Run(tc.nome, func(t *testing.T) {
 			// Simula o que o TCP entregaria
