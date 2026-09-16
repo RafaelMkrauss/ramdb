@@ -68,10 +68,12 @@ func FindInSSTable(searchKey []byte, filepath string) ([]byte, error) {
 			return nil, err
 		}
 
-		// Extrai a chave
+		// Extrai a chave (só lê se o tamanho for maior que 0)
 		k := make([]byte, keyLen)
-		if _, err := buf.Read(k); err != nil {
-			return nil, err
+		if keyLen > 0 {
+			if _, err := buf.Read(k); err != nil {
+				return nil, err
+			}
 		}
 
 		// Lê o tamanho do valor (4 bytes)
@@ -80,10 +82,12 @@ func FindInSSTable(searchKey []byte, filepath string) ([]byte, error) {
 			return nil, err
 		}
 
-		// Extrai o valor
+		// Extrai o valor (só lê se o tamanho for maior que 0)
 		v := make([]byte, valLen)
-		if _, err := buf.Read(v); err != nil {
-			return nil, err
+		if valLen > 0 {
+			if _, err := buf.Read(v); err != nil {
+				return nil, err
+			}
 		}
 
 		// Se achamos a chave desejada, retornamos o valor imediatamente!
