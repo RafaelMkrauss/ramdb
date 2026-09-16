@@ -186,3 +186,46 @@ func (t *RBTree) rightRotate(x *Node) {
 	y.Right = x
 	x.Parent = y
 }
+
+// GetAllInOrder varre a árvore inteira e retorna todos os dados ordenados lexicograficamente.
+// Este método é utilizado para gerar o payload que será gravado no disco (SSTable).
+func (t *RBTree) GetAllInOrder() []KVPair {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	// Pré-aloca o slice com o tamanho exato da árvore.
+	// Isso evita realocações dinâmicas custosas sob o capô do Go.
+	result := make([]KVPair, 0, t.Size)
+
+	// Inicia a travessia a partir da raiz
+	t.inOrderTraversal(t.Root, &result)
+
+	return result
+}
+
+// inOrderTraversal é a função recursiva que caminha pela árvore: Esquerda -> Nó -> Direita.
+func (t *RBTree) inOrderTraversal(node *Node, result *[]KVPair) {
+	if node == nil {
+		return
+	}
+
+	// 1. Desce tudo para a esquerda (menores valores)
+	t.inOrderTraversal(node.Left, result)
+
+	// 2. Processa o nó atual
+	// Criamos cópias dos bytes para garantir que o worker de disco não
+	// interfira acidentalmente na memória da árvore ativa
+	keyCopy := make([]byte, len(node.Key))
+	copy(keyCopy, node.Key)
+
+	valueCopy := make([]byte, len(node.Value))
+	copy(valueCopy, node.Value)
+
+	*result = append(*result, KVPair{
+		Key:   keyCopy,
+		Value: valueCopy,
+	})
+
+	// 3. Desce para a direita (maiores valores)
+	t.inOrderTraversal(node.Right, result)
+}
