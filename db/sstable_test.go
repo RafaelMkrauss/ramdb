@@ -41,4 +41,34 @@ func TestSSTable_WriteAndRead(t *testing.T) {
 	if err != ErrKeyNotFound {
 		t.Errorf("Esperava ErrKeyNotFound para chave inexistente, recebeu %v", err)
 	}
+
+	// 5. ReadSSTableKeys devolve todas as chaves, na ordem gravada
+	chaves, err := ReadSSTableKeys(filename)
+	if err != nil || len(chaves) != len(dados) {
+		t.Fatalf("Esperava %d chaves, recebeu %d (erro: %v)", len(dados), len(chaves), err)
+	}
+	for i, chave := range chaves {
+		if !bytes.Equal(chave, dados[i].Key) {
+			t.Errorf("Chave %d: esperava '%s', recebeu '%s'", i, dados[i].Key, chave)
+		}
+	}
+}
+
+func TestSSTable_ValorVazioNoFimDoArquivo(t *testing.T) {
+	filename := "test_sstable_vazio.data"
+	os.Remove(filename)
+	defer os.Remove(filename)
+
+	dados := []KVPair{
+		{Key: []byte("a_chave"), Value: []byte("valor_a")},
+		{Key: []byte("b_chave"), Value: []byte{}},
+	}
+	if err := WriteSSTable(dados, filename); err != nil {
+		t.Fatalf("Falha ao escrever SSTable: %v", err)
+	}
+
+	val, err := FindInSSTable([]byte("b_chave"), filename)
+	if err != nil || len(val) != 0 {
+		t.Errorf("Esperava valor vazio sem erro, recebeu '%s' (erro: %v)", val, err)
+	}
 }

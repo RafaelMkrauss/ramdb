@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -41,57 +42,95 @@ func WriteSSTable(data []KVPair, filepath string) error {
 	return nil
 }
 
-// Adicione os imports "bytes" e "encoding/binary" se não estiverem lá,
-// e o ErrKeyNotFound (pode referenciar do pacote db diretamente).
-
 // FindInSSTable abre o arquivo, decripta a carga AES-256 e busca a chave sequencialmente.
 func FindInSSTable(searchKey []byte, filepath string) ([]byte, error) {
-	// 1. Lê os bytes criptografados do disco
+	decryptedData, err := readSSTable(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	var found []byte
+	var ok bool
+	err = forEachPair(decryptedData, func(key, value []byte) bool {
+		if bytes.Equal(key, searchKey) {
+			found, ok = value, true
+			return false // achou: para a varredura
+		}
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		// Varreu o arquivo todo e não achou
+		return nil, ErrKeyNotFound
+	}
+	return found, nil
+}
+
+// ReadSSTableKeys devolve todas as chaves de um SSTable. É usado para remontar o
+// filtro de Bloom dos arquivos que já estavam no disco quando o banco iniciou.
+func ReadSSTableKeys(filepath string) ([][]byte, error) {
+	decryptedData, err := readSSTable(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	var keys [][]byte
+	err = forEachPair(decryptedData, func(key, _ []byte) bool {
+		keys = append(keys, key)
+		return true
+	})
+	return keys, err
+}
+
+// readSSTable lê os bytes criptografados do disco e decripta tudo para a memória.
+func readSSTable(filepath string) ([]byte, error) {
 	encryptedData, err := os.ReadFile(filepath)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Descriptografa tudo para a memória
 	decryptedData, err := Decrypt(encryptedData)
 	if err != nil {
 		return nil, fmt.Errorf("falha ao decriptar %s: %v", filepath, err)
 	}
+	return decryptedData, nil
+}
 
-	// 3. Buffer de leitura para o nosso formato binário denso
-	buf := bytes.NewReader(decryptedData)
+// forEachPair percorre o formato binário [tamChave][chave][tamValor][valor]...
+// chamando visit para cada par. Se visit devolver false, a varredura para ali.
+func forEachPair(data []byte, visit func(key, value []byte) bool) error {
+	buf := bytes.NewReader(data)
 
 	for buf.Len() > 0 {
 		// Lê o tamanho da chave (4 bytes)
 		var keyLen uint32
 		if err := binary.Read(buf, binary.LittleEndian, &keyLen); err != nil {
-			return nil, err
+			return err
 		}
 
-		// Extrai a chave
-		k := make([]byte, keyLen)
-		if _, err := buf.Read(k); err != nil {
-			return nil, err
+		// Extrai a chave. io.ReadFull exige ler tudo; buf.Read poderia ler menos sem dar erro.
+		key := make([]byte, keyLen)
+		if _, err := io.ReadFull(buf, key); err != nil {
+			return err
 		}
 
 		// Lê o tamanho do valor (4 bytes)
 		var valLen uint32
 		if err := binary.Read(buf, binary.LittleEndian, &valLen); err != nil {
-			return nil, err
+			return err
 		}
 
 		// Extrai o valor
-		v := make([]byte, valLen)
-		if _, err := buf.Read(v); err != nil {
-			return nil, err
+		value := make([]byte, valLen)
+		if _, err := io.ReadFull(buf, value); err != nil {
+			return err
 		}
 
-		// Se achamos a chave desejada, retornamos o valor imediatamente!
-		if bytes.Equal(k, searchKey) {
-			return v, nil
+		if !visit(key, value) {
+			return nil
 		}
 	}
-
-	// Varreu o arquivo todo e não achou
-	return nil, ErrKeyNotFound
+	return nil
 }
